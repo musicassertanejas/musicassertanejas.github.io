@@ -11,9 +11,6 @@
     <meta property="og:image" content="logo.png">
 
     <link rel="icon" type="image/png" href="logo.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -29,10 +26,11 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
 
+        /* Tela travada 100% visível sem rolagem externa + Textura de Madeira Escura */
         html, body {
             width: 100%;
             height: 100dvh;
@@ -57,6 +55,7 @@
             position: relative;
         }
 
+        /* Fundo decorativo com circuitos neon */
         .circuit-bg {
             position: fixed;
             inset: 0;
@@ -67,6 +66,7 @@
             opacity: 0.45;
         }
 
+        /* Container principal: ocupa 100% no celular e centraliza no tablet/notebook */
         .player-shell {
             position: relative;
             z-index: 1;
@@ -81,6 +81,7 @@
             padding: clamp(12px, 2.5vh, 22px) 20px clamp(14px, 2.8vh, 24px);
         }
 
+        /* Em telas grandes (notebook/tablet), ganha borda suave como um app flutuante */
         @media (min-width: 520px) {
             .player-shell {
                 height: 94dvh;
@@ -92,6 +93,7 @@
             }
         }
 
+        /* Topo: Logo e Título */
         .top-header {
             display: flex;
             flex-direction: column;
@@ -119,6 +121,7 @@
             text-shadow: 0 0 12px var(--amber-glow);
         }
 
+        /* Capa em destaque 1:1 (quadrada) */
         .featured-cover-box {
             width: clamp(150px, 25vh, 225px);
             height: clamp(150px, 25vh, 225px);
@@ -137,6 +140,7 @@
             display: block;
         }
 
+        /* Nome da Música e Onda Sonora */
         .track-info-area {
             width: 100%;
             display: flex;
@@ -159,10 +163,11 @@
 
         #waveCanvas {
             width: 100%;
-            height: clamp(32px, 5vh, 46px);
+            height: clamp(36px, 5.5vh, 52px);
             display: block;
         }
 
+        /* Barra de Tempo com Preenchimento Dinâmico */
         .progress-area {
             width: 100%;
             flex-shrink: 0;
@@ -173,7 +178,7 @@
             justify-content: space-between;
             font-size: 0.78rem;
             color: var(--text-muted);
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-variant-numeric: tabular-nums;
         }
 
@@ -181,7 +186,10 @@
             -webkit-appearance: none;
             appearance: none;
             width: 100%;
-            background: transparent;
+            height: 5px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.16);
+            outline: none;
             cursor: pointer;
             display: block;
         }
@@ -189,7 +197,7 @@
         input[type="range"]::-webkit-slider-runnable-track {
             height: 5px;
             border-radius: 99px;
-            background: rgba(255, 255, 255, 0.14);
+            background: transparent;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -207,6 +215,7 @@
             transform: scale(1.2);
         }
 
+        /* Controles Completos (Aleatório, Anterior, Play/Pause, Próxima, Loop) */
         .controls-row {
             width: 100%;
             display: flex;
@@ -234,8 +243,14 @@
             color: var(--text-main);
         }
 
+        /* Botões Avançar e Voltar em Branco */
         .ctrl-btn.nav-btn {
+            color: #ffffff;
+        }
+
+        .ctrl-btn.nav-btn:active {
             color: var(--neon-cyan);
+            transform: scale(0.92);
         }
 
         .ctrl-btn.active {
@@ -264,6 +279,7 @@
             transform: scale(1.05);
         }
 
+        /* Lista Horizontal de Músicas (Única barra com rolagem) */
         .playlist-strip {
             width: 100%;
             display: flex;
@@ -328,6 +344,7 @@
             font-weight: 600;
         }
 
+        /* Controle de Volume na Base com Preenchimento Âmbar */
         .volume-row {
             width: 100%;
             display: flex;
@@ -393,7 +410,7 @@
 
         <section class="track-info-area">
             <div class="track-title" id="trackTitle">Carregando...</div>
-            <canvas id="waveCanvas" width="600" height="80"></canvas>
+            <canvas id="waveCanvas" width="640" height="90"></canvas>
         </section>
 
         <section class="progress-area">
@@ -523,9 +540,18 @@
         let dataArray = null;
         let webAudioReady = false;
         let phase = 0;
+        let smoothEnergy = 0;
 
         const playIcon = `<path d="M8 5v14l11-7z"/>`;
         const pauseIcon = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+
+        function updateSliderFill(slider, fillColor) {
+            const min = parseFloat(slider.min) || 0;
+            const max = parseFloat(slider.max) || 100;
+            const val = parseFloat(slider.value) || 0;
+            const pct = ((val - min) / (max - min)) * 100;
+            slider.style.background = `linear-gradient(to right, ${fillColor} 0%, ${fillColor} ${pct}%, rgba(255, 255, 255, 0.16) ${pct}%, rgba(255, 255, 255, 0.16) 100%)`;
+        }
 
         function setupAudioAnalyser() {
             if (audioCtx) return;
@@ -534,7 +560,8 @@
                 audioCtx = new AudioContextClass();
                 const source = audioCtx.createMediaElementSource(audio);
                 analyser = audioCtx.createAnalyser();
-                analyser.fftSize = 128;
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.82;
                 source.connect(analyser);
                 analyser.connect(audioCtx.destination);
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -552,70 +579,89 @@
 
             ctx.clearRect(0, 0, width, height);
 
+            let targetEnergy = 0.04;
+
+            if (isPlaying) {
+                if (webAudioReady && analyser && dataArray) {
+                    analyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    const sampleCount = 32;
+                    for (let i = 0; i < sampleCount; i++) {
+                        sum += dataArray[i];
+                    }
+                    const avg = sum / (sampleCount * 255);
+                    targetEnergy = avg > 0.02 ? Math.min(1, avg * 1.45) : 0.55;
+                } else {
+                    targetEnergy = 0.55 + Math.sin(phase * 0.7) * 0.18;
+                }
+            }
+
+            smoothEnergy += (targetEnergy - smoothEnergy) * 0.14;
+            phase += isPlaying ? 0.09 : 0.015;
+
             const grad = ctx.createLinearGradient(0, 0, width, 0);
             grad.addColorStop(0, '#ffaa44');
-            grad.addColorStop(0.5, '#7de2d1');
+            grad.addColorStop(0.45, '#e89b52');
+            grad.addColorStop(0.65, '#4fd1c5');
             grad.addColorStop(1, '#00f0ff');
 
-            ctx.fillStyle = grad;
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 12;
-            ctx.shadowColor = 'rgba(0, 240, 255, 0.5)';
+            const layers = [
+                { speed: 0.75, freq1: 0.022, freq2: 0.045, scale: 0.78, alphaFill: 0.18, alphaStroke: 0.45, lineW: 1.5 },
+                { speed: 1.0,  freq1: 0.030, freq2: 0.062, scale: 1.0,  alphaFill: 0.34, alphaStroke: 0.95, lineW: 2.4 }
+            ];
 
-            if (isPlaying && webAudioReady && analyser) {
-                analyser.getByteFrequencyData(dataArray);
-            }
+            layers.forEach(layer => {
+                ctx.beginPath();
+                ctx.moveTo(0, centerY);
 
-            phase += isPlaying ? 0.08 : 0.01;
+                const steps = 140;
+                const stepX = width / steps;
 
-            const points = 60;
-            const step = width / points;
+                for (let i = 0; i <= steps; i++) {
+                    const x = i * stepX;
+                    const normX = i / steps;
+                    const envelope = Math.pow(Math.sin(normX * Math.PI), 1.6);
 
-            ctx.beginPath();
-            ctx.moveTo(0, centerY);
+                    const wave1 = Math.sin(x * layer.freq1 - phase * layer.speed);
+                    const wave2 = Math.cos(x * layer.freq2 + phase * layer.speed * 1.3);
+                    const wave3 = Math.sin(x * 0.012 + phase * 0.5);
 
-            for (let i = 0; i <= points; i++) {
-                const x = i * step;
-                const edgeFade = Math.sin((i / points) * Math.PI);
-                let amp = 2;
+                    const combined = Math.abs(wave1 * 0.5 + wave2 * 0.35 + wave3 * 0.15);
+                    const amp = (2 + combined * (height * 0.44) * smoothEnergy * layer.scale) * envelope;
 
-                if (isPlaying) {
-                    if (webAudioReady && dataArray && dataArray[0] > 0) {
-                        const freqIndex = Math.floor((i / points) * (dataArray.length * 0.6));
-                        amp = (dataArray[freqIndex] / 255) * (height * 0.44);
-                    } else {
-                        amp = (Math.sin(i * 0.35 + phase) * 0.5 + 0.5) * (height * 0.36);
-                    }
+                    ctx.lineTo(x, centerY - Math.max(0.8, amp));
                 }
 
-                const y = centerY - Math.max(1.5, amp * edgeFade);
-                ctx.lineTo(x, y);
-            }
+                for (let i = steps; i >= 0; i--) {
+                    const x = i * stepX;
+                    const normX = i / steps;
+                    const envelope = Math.pow(Math.sin(normX * Math.PI), 1.6);
 
-            for (let i = points; i >= 0; i--) {
-                const x = i * step;
-                const edgeFade = Math.sin((i / points) * Math.PI);
-                let amp = 2;
+                    const wave1 = Math.sin(x * layer.freq1 - phase * layer.speed);
+                    const wave2 = Math.cos(x * layer.freq2 + phase * layer.speed * 1.3);
+                    const wave3 = Math.sin(x * 0.012 + phase * 0.5);
 
-                if (isPlaying) {
-                    if (webAudioReady && dataArray && dataArray[0] > 0) {
-                        const freqIndex = Math.floor((i / points) * (dataArray.length * 0.6));
-                        amp = (dataArray[freqIndex] / 255) * (height * 0.44);
-                    } else {
-                        amp = (Math.sin(i * 0.35 + phase) * 0.5 + 0.5) * (height * 0.36);
-                    }
+                    const combined = Math.abs(wave1 * 0.5 + wave2 * 0.35 + wave3 * 0.15);
+                    const amp = (2 + combined * (height * 0.44) * smoothEnergy * layer.scale) * envelope;
+
+                    ctx.lineTo(x, centerY + Math.max(0.8, amp));
                 }
 
-                const y = centerY + Math.max(1.5, amp * edgeFade);
-                ctx.lineTo(x, y);
-            }
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.globalAlpha = layer.alphaFill;
+                ctx.fill();
 
-            ctx.closePath();
-            ctx.globalAlpha = 0.35;
-            ctx.fill();
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = layer.lineW;
+                ctx.shadowBlur = 14;
+                ctx.shadowColor = 'rgba(0, 240, 255, 0.55)';
+                ctx.globalAlpha = layer.alphaStroke;
+                ctx.stroke();
+            });
+
             ctx.globalAlpha = 1;
-            ctx.stroke();
+            ctx.shadowBlur = 0;
         }
 
         function formatTime(sec) {
@@ -649,6 +695,7 @@
             mainCover.onerror = () => { mainCover.src = fallbackCover; };
             audio.src = song.audioSrc;
             progressBar.value = 0;
+            updateSliderFill(progressBar, '#00f0ff');
             currentTimeEl.textContent = "0:00";
             totalDurationEl.textContent = "0:00";
 
@@ -731,26 +778,32 @@
         audio.addEventListener('timeupdate', () => {
             if (audio.duration) {
                 progressBar.value = (audio.currentTime / audio.duration) * 100;
+                updateSliderFill(progressBar, '#00f0ff');
                 currentTimeEl.textContent = formatTime(audio.currentTime);
                 totalDurationEl.textContent = formatTime(audio.duration);
             }
         });
 
         progressBar.addEventListener('input', () => {
+            updateSliderFill(progressBar, '#00f0ff');
             if (audio.duration) {
                 audio.currentTime = (progressBar.value / 100) * audio.duration;
             }
         });
 
         audio.volume = 0.85;
+        updateSliderFill(volumeBar, '#ffaa44');
+
         volumeBar.addEventListener('input', () => {
             audio.muted = false;
             audio.volume = volumeBar.value / 100;
+            updateSliderFill(volumeBar, '#ffaa44');
         });
 
         muteBtn.addEventListener('click', () => {
             audio.muted = !audio.muted;
             volumeBar.value = audio.muted ? 0 : audio.volume * 100;
+            updateSliderFill(volumeBar, '#ffaa44');
         });
 
         audio.addEventListener('ended', () => {
